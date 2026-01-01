@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import useGameStore from '../store/useGameStore';
 import useTypingEngine from '../hooks/useTypingEngine';
+import VirtualKeyboard from '../components/VirtualKeyboard';
 
 // 暫時的測試文章
-const DEMO_TEXT = "Hello world! This is a typing test for ClickClack.";
+const DEMO_TEXT = "Hello! Check out: user@email.com #Coding";
 
 export default function Practice() {
   // 從 Store 取得文章 (目前先用 DEMO_TEXT 頂替)
@@ -65,6 +66,13 @@ export default function Practice() {
             );
           })}
         </div>
+      </div>
+
+      <div className="mb-8">
+        <VirtualKeyboard 
+          nextChar={targetText[cursor]} 
+          isError={isCurrentError} 
+        />
       </div>
 
       {/* 底部輔助連結 */}
