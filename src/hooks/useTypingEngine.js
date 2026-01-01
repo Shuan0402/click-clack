@@ -1,14 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import useTypewriterSound from './useTypewriterSound';
 
 // 這是一個自定義 Hook，負責處理所有的打字邏輯
 export default function useTypingEngine(targetText) {
-  // 游標位置 (目前打到第幾個字)
   const [cursor, setCursor] = useState(0);
-  
-  // 錯誤記錄 (總共打錯幾次，用來算正確率)
   const [errorCount, setErrorCount] = useState(0);
-  
-  // 目前這個字是否打錯 (用來顯示紅色驚嘆或震動特效)
   const [isCurrentError, setIsCurrentError] = useState(false);
 
   // 重置功能 (當文章改變或重來時用)
@@ -17,6 +13,14 @@ export default function useTypingEngine(targetText) {
     setErrorCount(0);
     setIsCurrentError(false);
   }, []);
+
+  // 初始化音效
+  const { triggerKeySound, triggerErrorSound } = useTypewriterSound();
+
+  const stateRef = useRef({
+    cursor: 0,
+    targetText: targetText
+  });
 
   // 鍵盤事件處理核心
   const handleKeyDown = useCallback((e) => {
@@ -40,16 +44,15 @@ export default function useTypingEngine(targetText) {
       setCursor((prev) => prev + 1);
       setIsCurrentError(false); // 清除錯誤狀態
       
-      // TODO: 這裡之後要呼叫「打字音效」
-      
+      triggerKeySound();
     } else {
       // 答錯了！
       setErrorCount((prev) => prev + 1);
       setIsCurrentError(true); // 標記目前狀態為錯誤 (UI 可以變紅)
-      
-      // TODO: 這裡之後要呼叫「錯誤音效」
+
+      triggerErrorSound();
     }
-  }, [cursor, targetText]);
+  }, [cursor, targetText, triggerKeySound, triggerErrorSound]);
 
   // 綁定與解綁鍵盤事件
   useEffect(() => {
