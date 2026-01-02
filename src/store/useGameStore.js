@@ -1,24 +1,24 @@
-import {create} from 'zustand';
+import { create } from 'zustand';
 
-export const useGameStore = create((set) => ({
-    // 系統設定
-    isSoundEnabled: true,
-    toggleSound: () => set((state) => ({isSoundEnabled: !state.isSoundEnabled})),
+const useGameStore = create((set) => ({
+  // --- 系統設定 ---
+  isSoundEnabled: true,
+  toggleSound: () => set((state) => ({ isSoundEnabled: !state.isSoundEnabled })),
 
-    // 練習設定
-    language: 'en',
-    setLanguage: (lang) => set({language: lang}),
+  // --- 遊戲設定 ---
+  gameMode: 'time', // 'time' (倒數模式) | 'endless' (正計時/打完為止)
+  setGameMode: (mode) => set({ gameMode: mode }),
 
-    mode: 'time',
-    timeLimit: 60,
+  timeLimit: 60, // 單位：秒
+  setTimeLimit: (seconds) => set({ timeLimit: seconds }),
 
-    articleContent: '',
-    setArticleContent: (content) => set({articleContent: content}),
+  // --- 文章內容 ---
+  targetText: '', 
+  setTargetText: (text) => set({ targetText: text }),
 
-    // 遊戲狀態
-    wpm: 0,
-    accuracy: 0,
-    setResult: (wpm, accuracy) => set({wpm, accuracy}),
+  // --- 遊戲結果 (暫存) ---
+  results: { wpm: 0, accuracy: 0 },
+  setResults: (data) => set({ results: data }),
 }));
 
 export default useGameStore;

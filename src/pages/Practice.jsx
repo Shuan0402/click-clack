@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/useGameStore';
 import useTypingEngine from '../hooks/useTypingEngine';
 import VirtualKeyboard from '../components/VirtualKeyboard';
@@ -10,7 +10,17 @@ const DEMO_TEXT = "Hello! Check out: user@email.com #Coding";
 export default function Practice() {
   // 從 Store 取得文章 (目前先用 DEMO_TEXT 頂替)
   // const { articleContent } = useGameStore(); 
-  const targetText = DEMO_TEXT; 
+  const { targetText } = useGameStore();
+  const navigate = useNavigate(); // 用來導航
+
+  useEffect(() => {
+    if (!targetText) {
+      navigate('/setup');
+    }
+  }, [targetText, navigate]);
+
+  // 如果沒有文章，先回傳 null 避免報錯 (雖然上面的 useEffect 會跳轉)
+  if (!targetText) return null;
 
   // 使用我們寫好的 Hook
   const { cursor, isCurrentError, isFinished, reset } = useTypingEngine(targetText);
