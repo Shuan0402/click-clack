@@ -6,19 +6,25 @@ const useGameStore = create((set) => ({
   toggleSound: () => set((state) => ({ isSoundEnabled: !state.isSoundEnabled })),
 
   // --- 遊戲設定 ---
-  gameMode: 'time', // 'time' (倒數模式) | 'endless' (正計時/打完為止)
+  gameMode: 'time', // 'time' | 'endless'
   setGameMode: (mode) => set({ gameMode: mode }),
 
-  timeLimit: 60, // 單位：秒
+  timeLimit: 60,
   setTimeLimit: (seconds) => set({ timeLimit: seconds }),
 
   // --- 文章內容 ---
   targetText: '', 
   setTargetText: (text) => set({ targetText: text }),
 
-  // --- 遊戲結果 (暫存) ---
-  results: { wpm: 0, accuracy: 0 },
-  setResults: (data) => set({ results: data }),
+  // --- [新增] 遊戲結算成績 ---
+  gameResults: {
+    wpm: 0,
+    accuracy: 0,
+    timeElapsed: 0,
+    errorCount: 0,
+    totalChars: 0
+  },
+  setGameResults: (results) => set({ gameResults: results }),
 }));
 
 export default useGameStore;

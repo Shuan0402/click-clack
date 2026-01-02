@@ -1,75 +1,118 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useTypewriterSound from './useTypewriterSound';
 
-// 這是一個自定義 Hook，負責處理所有的打字邏輯
 export default function useTypingEngine(targetText) {
   const [cursor, setCursor] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [isCurrentError, setIsCurrentError] = useState(false);
-
-  // 重置功能 (當文章改變或重來時用)
-  const reset = useCallback(() => {
-    setCursor(0);
-    setErrorCount(0);
-    setIsCurrentError(false);
-  }, []);
-
-  // 初始化音效
+  
+  // [新增] 計時相關狀態
+  const [startTime, setStartTime] = useState(null); // 開始時間
+  const [endTime, setEndTime] = useState(null);     // 結束時間
+  
   const { triggerKeySound, triggerErrorSound } = useTypewriterSound();
 
   const stateRef = useRef({
     cursor: 0,
-    targetText: targetText
+    targetText: targetText,
+    startTime: null, // 用 Ref 紀錄避免閉包問題
+    isFinished: false
   });
 
-  // 鍵盤事件處理核心
+  // 當文章重置時
+  useEffect(() => {
+    stateRef.current.targetText = targetText;
+    stateRef.current.cursor = 0;
+    stateRef.current.startTime = null;
+    stateRef.current.isFinished = false;
+    setStartTime(null);
+    setEndTime(null);
+  }, [targetText]);
+
+  const reset = useCallback(() => {
+    setCursor(0);
+    setErrorCount(0);
+    setIsCurrentError(false);
+    setStartTime(null);
+    setEndTime(null);
+    stateRef.current.cursor = 0;
+    stateRef.current.startTime = null;
+    stateRef.current.isFinished = false;
+  }, []);
+
   const handleKeyDown = useCallback((e) => {
-    // 1. 如果已經打完了，就不處理
-    if (cursor >= targetText.length) return;
+    const { cursor: currentCursor, targetText: currentText, isFinished } = stateRef.current;
+
+    if (isFinished) return;
+    if (currentCursor >= currentText.length) return;
+
+    // [新增] 第一次按鍵時，啟動計時器
+    if (!stateRef.current.startTime) {
+      const now = Date.now();
+      stateRef.current.startTime = now;
+      setStartTime(now);
+    }
 
     const key = e.key;
-    const targetChar = targetText[cursor];
+    const targetChar = currentText[currentCursor];
 
-    // 2. 忽略系統按鍵 (Shift, Ctrl, Alt, CapsLock 等)
     if (key.length > 1 && key !== 'Backspace') return;
 
-    // 3. 處理 Backspace (倒退鍵)
-    // 選項：如果你希望允許使用者倒退修改，可以在這裡寫。
-    // 但復古打字機通常是「一去不復返」或「嚴格模式」，我們先做嚴格模式：
-    // 只有打對才能前進，打錯會卡住。
-    
-    // 4. 比對輸入字元
-    if (key === targetChar) {
-      // 答對了！
-      setCursor((prev) => prev + 1);
-      setIsCurrentError(false); // 清除錯誤狀態
-      
+    if (key === targetChar) { // 這裡建議不要用 toLowerCase()，練習通常要求大小寫精確
+      // 正確
+      const nextCursor = currentCursor + 1;
+      setCursor(nextCursor);
+      stateRef.current.cursor = nextCursor; // 同步 Ref
+      setIsCurrentError(false);
       triggerKeySound();
-    } else {
-      // 答錯了！
-      setErrorCount((prev) => prev + 1);
-      setIsCurrentError(true); // 標記目前狀態為錯誤 (UI 可以變紅)
 
+      // [新增] 檢查是否打完了
+      if (nextCursor === currentText.length) {
+        const finishTime = Date.now();
+        setEndTime(finishTime);
+        stateRef.current.isFinished = true;
+      }
+    } else {
+      // 錯誤
+      setErrorCount(prev => prev + 1);
+      setIsCurrentError(true);
       triggerErrorSound();
     }
-  }, [cursor, targetText, triggerKeySound, triggerErrorSound]);
+  }, [triggerKeySound, triggerErrorSound]);
 
-  // 綁定與解綁鍵盤事件
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // [新增] 計算並回傳統計數據
+  const totalTimeInSeconds = (endTime && startTime) ? (endTime - startTime) / 1000 : 0;
+  
+  // WPM 公式：(總字數 / 5) / 分鐘數
+  // 避免除以 0
+  const wpm = totalTimeInSeconds > 0 
+    ? Math.round((targetText.length / 5) / (totalTimeInSeconds / 60)) 
+    : 0;
+
+  const accuracy = cursor > 0 
+    ? Math.round(((cursor - errorCount) / cursor) * 100) 
+    : 100;
+
+  const stats = useMemo(() => {
+    return {
+      wpm,
+      accuracy: Math.max(0, accuracy),
+      timeElapsed: totalTimeInSeconds,
+      errorCount
+    };
+  }, [wpm, accuracy, totalTimeInSeconds, errorCount]);
 
   return {
     cursor,
     errorCount,
     isCurrentError,
     reset,
-    // 計算進度百分比 (0 ~ 100)
-    progress: (cursor / targetText.length) * 100,
-    // 是否完成
-    isFinished: cursor === targetText.length && targetText.length > 0
+    isFinished: cursor === targetText.length && targetText.length > 0,
+    stats // 回傳穩定的 stats
   };
 }
