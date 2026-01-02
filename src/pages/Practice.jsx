@@ -1,93 +1,127 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useGameStore from '../store/useGameStore';
 import useTypingEngine from '../hooks/useTypingEngine';
 import VirtualKeyboard from '../components/VirtualKeyboard';
 
-// 暫時的測試文章
-const DEMO_TEXT = "Hello! Check out: user@email.com #Coding";
-
 export default function Practice() {
-  // 從 Store 取得文章 (目前先用 DEMO_TEXT 頂替)
-  // const { articleContent } = useGameStore(); 
   const { targetText } = useGameStore();
-  const navigate = useNavigate(); // 用來導航
+  const navigate = useNavigate();
 
+  const containerRef = useRef(null);
+  const activeCharRef = useRef(null);
+
+  // 安全跳轉
   useEffect(() => {
-    if (!targetText) {
-      navigate('/setup');
-    }
+    if (!targetText) navigate('/setup');
   }, [targetText, navigate]);
 
-  // 如果沒有文章，先回傳 null 避免報錯 (雖然上面的 useEffect 會跳轉)
   if (!targetText) return null;
 
-  // 使用我們寫好的 Hook
   const { cursor, isCurrentError, isFinished, reset } = useTypingEngine(targetText);
 
-  // 當組件掛載時，確保重置狀態
+  // --- [核心修正] 絕對置頂滾動邏輯 ---
   useEffect(() => {
-    reset();
-  }, [reset]);
+    if (activeCharRef.current && containerRef.current) {
+      const container = containerRef.current;
+      const activeChar = activeCharRef.current;
+
+      // 修正後的算法：
+      // 直接讀取該字元在「文字區塊」內的垂直高度。
+      // 當我們把容器的 scrollTop 設定為這個高度時，
+      // 該行就會被捲動到容器的最頂端 (原本第一行的位置)。
+      const targetScrollTop = activeChar.offsetTop;
+
+      container.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+      });
+    }
+  }, [cursor]);
+
+  // 組件掛載時重置
+  useEffect(() => { reset(); }, [reset]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-stone-100 font-mono">
-      {/* 標題與狀態 */}
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl text-gray-700 mb-2">Typing Arena</h2>
+    <div className="flex flex-col items-center justify-center h-screen bg-stone-100 font-mono overflow-hidden">
+      
+      {/* 標題區 */}
+      <div className="mb-6 text-center shrink-0">
+        <h2 className="text-4xl text-gray-800 font-bold tracking-tight mb-2">Typing Arena</h2>
         <p className="text-gray-500">Type the text below:</p>
       </div>
 
-      {/* --- 打字機顯示區 (核心 UI) --- */}
-      <div className="relative w-3/4 max-w-4xl p-8 bg-white shadow-lg rounded-lg border-t-4 border-gray-800 min-h-[200px] leading-relaxed text-2xl">
+      {/* --- [結構修正] 外層容器 --- */}
+      {/* 這個 relative 容器是用來固定「結算畫面」的位置，讓它不會跟著文字捲走 */}
+      <div className="relative w-3/4 max-w-4xl h-64 shadow-2xl rounded-xl bg-white border border-gray-200 mb-8">
         
-        {/* 完成時的遮罩 */}
+        {/* 1. 結算遮罩 (絕對定位，覆蓋在外層容器上) */}
         {isFinished && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 backdrop-blur-sm">
-             <div className="text-center">
-                <h3 className="text-4xl font-bold text-green-600 mb-4">Finished! 🎉</h3>
-                <Link to="/result" className="px-6 py-3 bg-gray-800 text-white rounded hover:bg-gray-700">
-                  Check Results
-                </Link>
+          <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-50 rounded-xl animate-in fade-in duration-500 backdrop-blur-sm">
+             <h3 className="text-4xl font-bold text-green-600 mb-4">Finished! 🎉</h3>
+             <div className="flex gap-4">
+               <Link to="/setup" className="px-6 py-3 bg-gray-200 rounded hover:bg-gray-300 transition shadow">Try Again</Link>
+               <Link to="/" className="px-6 py-3 bg-gray-900 text-white rounded hover:bg-gray-800 transition shadow">Back Home</Link>
              </div>
           </div>
         )}
 
-        {/* 文字渲染區 */}
-        <div className="break-words select-none">
-          {targetText.split('').map((char, index) => {
-            let colorClass = "text-gray-300"; // 預設：還沒打到的字 (淺色)
-            let extraStyle = "";
+        {/* 2. 捲動容器 (Scroll Container) */}
+        {/* p-8: 給予視覺上的邊距 (讓字不要貼邊)
+            pb-[200px]: 底部超大留白，確保最後一行也能被捲到最上面
+        */}
+        <div 
+          ref={containerRef} 
+          className="w-full h-full overflow-hidden leading-relaxed text-2xl p-8 pb-[200px] scroll-smooth"
+        >
+          {/* 3. 文字內容包裹層 (Relative Wrapper) */}
+          {/* 這是計算 offsetTop 的基準點，必須設為 relative */}
+          <div className="break-words select-none relative">
+            {targetText.split('').map((char, index) => {
+              let colorClass = "text-gray-300"; 
+              let extraStyle = "";
 
-            if (index < cursor) {
-              // 已經打完的字 (正常顯示，深色)
-              colorClass = "text-gray-800";
-            } else if (index === cursor) {
-              // 目前正在打的字 (粗體 + 游標)
-              colorClass = "text-black font-bold";
-              // 如果打錯了，變紅色；否則給他一個底線或背景提示
-              extraStyle = isCurrentError ? "bg-red-200 text-red-600" : "bg-gray-200";
-            }
+              if (index < cursor) {
+                colorClass = "text-gray-800"; 
+              } else if (index === cursor) {
+                // 目前游標樣式
+                colorClass = "text-black font-bold";
+                extraStyle = isCurrentError 
+                  ? "bg-red-500 text-white rounded px-1 animate-pulse"
+                  : "bg-green-200 text-green-900 rounded px-1 animate-pulse";
+              }
 
-            return (
-              <span key={index} className={`${colorClass} ${extraStyle} px-[1px] rounded transition-colors duration-100`}>
-                {char}
-              </span>
-            );
-          })}
+              return (
+                <span 
+                  key={index} 
+                  ref={index === cursor ? activeCharRef : null}
+                  className={`${colorClass} ${extraStyle} inline-block transition-colors duration-100 min-w-[0.5rem]`}
+                >
+                  {char === '\n' ? '↵' : char}
+                  {char === '\n' && <br />} 
+                </span>
+              );
+            })}
+            
+            {/* 游標補償 (打完最後一字時) */}
+            {cursor === targetText.length && (
+               <span 
+                 ref={activeCharRef} 
+                 className="inline-block w-2 h-6 bg-black ml-1 animate-pulse align-middle"
+               />
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="mb-8">
-        <VirtualKeyboard 
-          nextChar={targetText[cursor]} 
-          isError={isCurrentError} 
-        />
+      {/* 鍵盤區 */}
+      <div className="shrink-0 mb-4 z-10">
+        <VirtualKeyboard nextChar={targetText[cursor]} isError={isCurrentError} />
       </div>
 
-      {/* 底部輔助連結 */}
-      <div className="mt-12">
-        <Link to="/" className="text-gray-400 hover:text-gray-600">Quit Practice</Link>
+      {/* 底部連結 */}
+      <div className="shrink-0">
+        <Link to="/" className="text-gray-400 hover:text-gray-600 text-sm">Quit Practice</Link>
       </div>
     </div>
   );
