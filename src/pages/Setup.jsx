@@ -39,35 +39,56 @@ export default function Setup() {
     }
   };
 
-  // --- 核心：模擬 AI 生成邏輯 (Mock) ---
+  // --- 核心：呼叫後端 API 生成文章 ---
   const handleGenerate = async () => {
     setIsGenerating(true);
-    
-    // 模擬網路延遲
-    setTimeout(() => {
-      let mockResponse = "";
+    let generatedText = "";
 
+    try {
+      // 判斷目前是哪種模式
+      let payload = {};
+      
       if (activeTab === 'ai-prompt') {
-        // 模式 2: 純指令生成
         if (!aiPrompt.trim()) { alert("Please enter a prompt!"); setIsGenerating(false); return; }
-        mockResponse = `[AI Generated] Based on prompt "${aiPrompt}": \nTechnology is reshaping our world. From AI to green energy, innovation is the key to our future. (Mock Data)`;
+        // 準備要傳給後端的資料
+        payload = {
+          prompt: aiPrompt,
+          mode: "creative"
+        };
       } 
+      // TODO: 檔案上傳模式 (下一步處理)
       else if (activeTab === 'ai-file') {
-        // 模式 3: 檔案分析
-        if (!selectedFile) { alert("Please select a file!"); setIsGenerating(false); return; }
-        
-        if (analysisMode === 'extract') {
-          mockResponse = `[Extraction Mode] Summary of ${selectedFile.name}:\nThis document discusses key concepts of software engineering. The main points are: 1. Requirement Analysis, 2. System Design, 3. Testing protocols. It emphasizes the importance of the SDLC life cycle.`;
-        } else {
-          mockResponse = `[Expansion Mode] Deep Dive into ${selectedFile.name}:\nStarting from the concepts in your file, we can look further into modern applications. While the file mentions basic SDLC, current industry trends favor DevOps and CI/CD pipelines. This article explores how these advanced methodologies integrate with the traditional concepts you uploaded.`;
-        }
+        alert("File upload feature is coming in the next step!");
+        setIsGenerating(false);
+        return;
       }
 
-      // 生成完畢，將結果填入 Manual 頁面供使用者最後確認
-      setManualText(mockResponse);
-      setActiveTab('manual'); 
+      // 🔥 發送請求給 Python 後端
+      const response = await fetch('http://localhost:8000/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload), // 把物件轉成 JSON 字串
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      generatedText = data.data; // 取得後端回傳的文字
+
+      // 生成成功，填入並跳轉
+      setManualText(generatedText);
+      setActiveTab('manual');
+
+    } catch (error) {
+      console.error("API Error:", error);
+      alert("Failed to connect to backend. Is Python running?");
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   // --- 開始遊戲 ---
