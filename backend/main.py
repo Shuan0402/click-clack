@@ -11,9 +11,8 @@ load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 client = None
 
-# --- 修改點 1: 設定 Groq 的 Base URL ---
+# 使用 Groq 
 if api_key:
-    # 這裡的寫法讓原本的 OpenAI 套件去連 Groq 的伺服器
     client = OpenAI(
         api_key=api_key,
         base_url="https://api.groq.com/openai/v1"
@@ -34,20 +33,34 @@ app.add_middleware(
 class GenerateRequest(BaseModel):
     prompt: str
     mode: str = "creative" 
+    length: str = "medium" # 👈 新增這個欄位 (short, medium, long)
 
 @app.post("/api/generate")
 async def generate_text(request: GenerateRequest):
-    print(f"收到請求: Mode={request.mode}, Prompt={request.prompt}")
+    print(f"收到請求: Mode={request.mode}, Length={request.length}, Prompt={request.prompt}")
     
+    # 1. 定義字數邏輯
+    word_count_map = {
+        "short": "around 100 words",
+        "medium": "around 250 words",
+        "long": "around 500 words"
+    }
+    target_len_str = word_count_map.get(request.length, "around 250 words")
+
     if client:
         try:
-            print("正在呼叫 Groq API...") # 改個名字
+            # 2. 將字數要求塞入 System Prompt
+            system_instruction = f"You are a creative writer. Generate a concise, engaging article ({target_len_str}) for typing practice. Do not output markdown titles, just plain text paragraphs."
             
-            system_instruction = "You are a creative writer. Generate a concise, engaging article (200 words) for typing practice."
+            # 如果未來有其他模式 (extract/expand)，也可以在這裡調整 Prompt
+            if request.mode == "extract":
+                system_instruction = f"You are a summarizer. Extract key points from the user's text and form a coherent article ({target_len_str})."
+            elif request.mode == "expand":
+                system_instruction = f"You are a researcher. Take the user's topic and expand it into a detailed article ({target_len_str}) with external knowledge."
+
+            print(f"呼叫 AI (Length: {target_len_str})...")
             
             completion = client.chat.completions.create(
-                # --- 修改點 2: 模型名稱換成 Groq 支援的 ---
-                # 推薦使用 Llama 3 (Meta) 或 Mixtral
                 model="llama-3.3-70b-versatile", 
                 messages=[
                     {"role": "system", "content": system_instruction},
@@ -63,17 +76,18 @@ async def generate_text(request: GenerateRequest):
         except Exception as e:
             print(f"API 呼叫失敗 ({str(e)})。切換至模擬模式。")
     
-    # --- 降級模擬模式 ---
+    # --- 降級模擬模式 (依照要求的長度給假資料) ---
     print("使用模擬資料回傳...")
     time.sleep(1)
     
-    fallback_text = f"""[Mock Mode]
-Backend is running but API call failed. 
-Here is some practice text:
-Technology moves fast. The quick brown fox jumps over the lazy dog.
-    """
+    # 簡單模擬不同長度的假文
+    base_text = "The quick brown fox jumps over the lazy dog. Technology moves fast. "
+    multiplier = 5 if request.length == "short" else 15 if request.length == "medium" else 30
+    
+    fallback_text = f"[Mock Mode: {request.length.upper()} text]\n" + (base_text * multiplier)
+    
     return {"status": "success", "data": fallback_text}
 
 @app.get("/")
 def read_root():
-    return {"message": "ClickClack Backend (Groq Edition) is ready!"}
+    return {"message": "ClickClack Backend is ready!"}
