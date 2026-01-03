@@ -42,30 +42,38 @@ export default function Setup() {
     let generatedText = "";
 
     try {
-      let payload = {};
-      
-      // 準備發送給後端的資料，加入 length 參數
+      let response;
+
+      // --- 情況 A: 純 Prompt 生成 (AI Writer) ---
       if (activeTab === 'ai-prompt') {
         if (!aiPrompt.trim()) { alert("Please enter a prompt!"); setIsGenerating(false); return; }
-        payload = {
-          prompt: aiPrompt,
-          mode: "creative",
-          length: targetLength // 👈 傳送長度
-        };
+        
+        response = await fetch('http://localhost:8000/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: aiPrompt,
+            mode: "creative",
+            length: targetLength
+          }),
+        });
       } 
+      // --- 情況 B: 檔案上傳 (Smart Review) ---
       else if (activeTab === 'ai-file') {
-        // 檔案上傳功能 (這部分我們還沒實作後端，先用 Mock 擋著或稍後實作)
-        alert("File upload feature is coming next! Check console for payload.");
-        console.log("File Payload would be:", { file: selectedFile, mode: analysisMode, length: targetLength });
-        setIsGenerating(false);
-        return;
-      }
+        if (!selectedFile) { alert("Please select a file!"); setIsGenerating(false); return; }
 
-      const response = await fetch('http://localhost:8000/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        // 上傳檔案必須使用 FormData 物件
+        const formData = new FormData();
+        formData.append('file', selectedFile);  // 檔案本身
+        formData.append('mode', analysisMode);  // extract 或 expand
+        formData.append('length', targetLength); // short, medium, long
+
+        response = await fetch('http://localhost:8000/api/analyze', {
+          method: 'POST',
+          // 注意：使用 FormData 時，不可以手動設 Content-Type header，瀏覽器會自動處理
+          body: formData, 
+        });
+      }
 
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
