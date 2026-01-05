@@ -17,11 +17,11 @@ export default function Setup() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [analysisMode, setAnalysisMode] = useState('extract'); 
-  
-  // 👇 [新增] 字數長度設定 ('short' | 'medium' | 'long')
   const [targetLength, setTargetLength] = useState('medium'); 
-
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // 👇 [關鍵修改] 定義後端網址 (直接寫死 Render 網址，確保連線成功)
+  const API_BASE = "https://click-clack-1.onrender.com";
 
   const handleFileSelect = (e, targetStateSetter) => {
     const file = e.target.files[0];
@@ -48,7 +48,8 @@ export default function Setup() {
       if (activeTab === 'ai-prompt') {
         if (!aiPrompt.trim()) { alert("Please enter a prompt!"); setIsGenerating(false); return; }
         
-        response = await fetch('http://localhost:8000/api/generate', {
+        // 👇 [修改] 使用 API_BASE 變數
+        response = await fetch(`${API_BASE}/api/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -62,15 +63,14 @@ export default function Setup() {
       else if (activeTab === 'ai-file') {
         if (!selectedFile) { alert("Please select a file!"); setIsGenerating(false); return; }
 
-        // 上傳檔案必須使用 FormData 物件
         const formData = new FormData();
-        formData.append('file', selectedFile);  // 檔案本身
-        formData.append('mode', analysisMode);  // extract 或 expand
-        formData.append('length', targetLength); // short, medium, long
+        formData.append('file', selectedFile); 
+        formData.append('mode', analysisMode); 
+        formData.append('length', targetLength);
 
-        response = await fetch('http://localhost:8000/api/analyze', {
+        // 👇 [修改] 使用 API_BASE 變數
+        response = await fetch(`${API_BASE}/api/analyze`, {
           method: 'POST',
-          // 注意：使用 FormData 時，不可以手動設 Content-Type header，瀏覽器會自動處理
           body: formData, 
         });
       }
@@ -85,7 +85,7 @@ export default function Setup() {
 
     } catch (error) {
       console.error("API Error:", error);
-      alert("Failed to connect to backend.");
+      alert("Failed to connect to backend. Please check console for details.");
     } finally {
       setIsGenerating(false);
     }
@@ -128,7 +128,7 @@ export default function Setup() {
     <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4 font-mono text-gray-800">
       <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden border border-stone-200 flex flex-col md:flex-row h-[650px]">
         
-        {/* 左側導航 (不變) */}
+        {/* 左側導航 */}
         <div className="bg-gray-900 text-stone-300 w-full md:w-64 p-6 flex flex-col">
           <h1 className="text-2xl font-bold text-white mb-8 tracking-wider">ClickClack</h1>
           <nav className="flex-1 space-y-2">
@@ -152,7 +152,7 @@ export default function Setup() {
         {/* 右側內容區 */}
         <div className="flex-1 p-8 flex flex-col overflow-y-auto">
           
-          {/* Mode Selector (不變) */}
+          {/* Mode Selector */}
           <div className="mb-6 p-4 bg-stone-50 rounded-lg border border-stone-200 flex flex-wrap gap-6 items-center">
             <div className="flex items-center gap-2 text-gray-700 font-bold"><Clock size={18} /> Mode:</div>
             <div className="flex gap-2">
@@ -187,7 +187,6 @@ export default function Setup() {
                   <input type="text" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. History of Jazz..." value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} />
                 </div>
                 
-                {/* 👇 加入長度選擇器 */}
                 <LengthSelector />
 
                 <button onClick={handleGenerate} disabled={isGenerating} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded shadow-md flex items-center justify-center gap-2 disabled:opacity-50 transition-all">
@@ -202,7 +201,7 @@ export default function Setup() {
               <div className="animate-in fade-in duration-300">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><FileSearch /> Smart Review & Analyze</h2>
                 
-                {/* 檔案上傳區 (UI Only) */}
+                {/* 檔案上傳區 */}
                 <div className={`border-2 border-dashed rounded-lg p-6 text-center mb-4 transition-colors ${selectedFile ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}>
                   {selectedFile ? (
                     <div className="flex items-center justify-center gap-2 text-green-700 font-bold"><FileText size={20} /> {selectedFile.name} <button onClick={() => setSelectedFile(null)} className="text-xs text-red-500 hover:underline ml-2">(Remove)</button></div>
@@ -221,7 +220,6 @@ export default function Setup() {
                   </button>
                 </div>
 
-                {/* 👇 加入長度選擇器 */}
                 <LengthSelector />
 
                 <button onClick={handleGenerate} disabled={isGenerating || !selectedFile} className="w-full py-4 bg-gray-800 hover:bg-gray-900 text-white rounded shadow-md flex items-center justify-center gap-2 disabled:opacity-50 transition-all">
