@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Bot, Clock, Play, Upload, Sparkles, FileSearch, BookOpen, AlignLeft } from 'lucide-react'; 
+import { FileText, Bot, Clock, Play, Upload, Sparkles, FileSearch, BookOpen, AlignLeft, Infinity as InfinityIcon, Timer } from 'lucide-react'; 
 import useGameStore from '../store/useGameStore';
 
 export default function Setup() {
@@ -20,7 +20,7 @@ export default function Setup() {
   const [targetLength, setTargetLength] = useState('medium'); 
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // 👇 [關鍵修改] 定義後端網址 (直接寫死 Render 網址，確保連線成功)
+  // 定義後端網址
   const API_BASE = "https://click-clack-1.onrender.com";
 
   const handleFileSelect = (e, targetStateSetter) => {
@@ -44,11 +44,9 @@ export default function Setup() {
     try {
       let response;
 
-      // --- 情況 A: 純 Prompt 生成 (AI Writer) ---
       if (activeTab === 'ai-prompt') {
         if (!aiPrompt.trim()) { alert("Please enter a prompt!"); setIsGenerating(false); return; }
         
-        // 👇 [修改] 使用 API_BASE 變數
         response = await fetch(`${API_BASE}/api/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -59,7 +57,6 @@ export default function Setup() {
           }),
         });
       } 
-      // --- 情況 B: 檔案上傳 (Smart Review) ---
       else if (activeTab === 'ai-file') {
         if (!selectedFile) { alert("Please select a file!"); setIsGenerating(false); return; }
 
@@ -68,7 +65,6 @@ export default function Setup() {
         formData.append('mode', analysisMode); 
         formData.append('length', targetLength);
 
-        // 👇 [修改] 使用 API_BASE 變數
         response = await fetch(`${API_BASE}/api/analyze`, {
           method: 'POST',
           body: formData, 
@@ -152,15 +148,55 @@ export default function Setup() {
         {/* 右側內容區 */}
         <div className="flex-1 p-8 flex flex-col overflow-y-auto">
           
-          {/* Mode Selector */}
-          <div className="mb-6 p-4 bg-stone-50 rounded-lg border border-stone-200 flex flex-wrap gap-6 items-center">
-            <div className="flex items-center gap-2 text-gray-700 font-bold"><Clock size={18} /> Mode:</div>
-            <div className="flex gap-2">
-              <button onClick={() => setGameMode('time')} className={`px-3 py-1 rounded text-sm transition-colors ${gameMode === 'time' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600'}`}>Time Attack</button>
-              <button onClick={() => setGameMode('endless')} className={`px-3 py-1 rounded text-sm transition-colors ${gameMode === 'endless' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600'}`}>Endless</button>
+          {/* Mode Selector (大幅優化版) */}
+          <div className="mb-6 p-5 bg-stone-50 rounded-xl border border-stone-200 flex flex-col gap-4">
+            
+            {/* 模式切換按鈕 */}
+            <div className="flex flex-wrap gap-6 items-center border-b border-gray-200 pb-4">
+              <div className="flex items-center gap-2 text-gray-700 font-bold text-lg">
+                <Clock size={20} /> Mode:
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setGameMode('time')} 
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${gameMode === 'time' ? 'bg-gray-800 text-white shadow-md' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <Timer size={16} /> Time Attack
+                </button>
+                <button 
+                  onClick={() => setGameMode('endless')} 
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${gameMode === 'endless' ? 'bg-gray-800 text-white shadow-md' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <InfinityIcon size={16} /> Endless
+                </button>
+              </div>
             </div>
+
+            {/* 👇 [新功能] 時間調整拉桿 (只有 Time Attack 顯示) */}
             {gameMode === 'time' && (
-               <input type="range" min="15" max="300" step="15" value={timeLimit} onChange={(e) => setTimeLimit(Number(e.target.value))} className="w-32 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer" title={`Time limit: ${timeLimit}s`} />
+               <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                 <div className="flex justify-between items-end mb-2">
+                    <span className="text-sm font-bold text-gray-600">Duration Limit</span>
+                    <span className="text-2xl font-black text-blue-600 tabular-nums">{timeLimit}s</span>
+                 </div>
+                 
+                 <input 
+                   type="range" 
+                   min="15" 
+                   max="300" 
+                   step="15" 
+                   value={timeLimit} 
+                   onChange={(e) => setTimeLimit(Number(e.target.value))} 
+                   className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 hover:bg-gray-300 transition-colors" 
+                 />
+                 
+                 <div className="flex justify-between text-xs font-medium text-gray-400 mt-2">
+                   <span>15s</span>
+                   <span>60s</span>
+                   <span>120s</span>
+                   <span>300s</span>
+                 </div>
+               </div>
             )}
           </div>
 
