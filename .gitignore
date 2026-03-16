@@ -33,3 +33,4 @@ env/
 # Environment Variables (重要！)
 .env
 backend/.env
+clickclack/*

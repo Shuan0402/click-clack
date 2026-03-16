@@ -6,16 +6,19 @@ const useGameStore = create((set) => ({
   toggleSound: () => set((state) => ({ isSoundEnabled: !state.isSoundEnabled })),
   
   // --- 遊戲參數 ---
-  targetText: "The quick brown fox jumps over the lazy dog.", // 預設文字
+  targetText: "The quick brown fox jumps over the lazy dog.",
   setTargetText: (text) => set({ targetText: text }),
   
-  gameMode: 'time', // 'time' or 'endless'
+  gameMode: 'time',
   setGameMode: (mode) => set({ gameMode: mode }),
   
-  timeLimit: 60, // 預設 60秒
+  timeLimit: 60,
   setTimeLimit: (time) => set({ timeLimit: time }),
 
-  // --- 遊戲結果 (新增這部分) ---
+  language: 'en',
+  setLanguage: (lang) => set({ language: lang }),
+
+  // --- 遊戲結果 ---
   gameResults: {
     wpm: 0,
     accuracy: 0,

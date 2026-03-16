@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Bot, Clock, Play, Upload, Sparkles, FileSearch, BookOpen, AlignLeft, Infinity as InfinityIcon, Timer } from 'lucide-react'; 
+import { FileText, Bot, Clock, Play, Upload, Sparkles, FileSearch, BookOpen, AlignLeft, Infinity as InfinityIcon, Timer, Globe, Languages } from 'lucide-react'; 
 import useGameStore from '../store/useGameStore';
 
 export default function Setup() {
@@ -8,7 +8,7 @@ export default function Setup() {
   const { 
     isSoundEnabled, toggleSound, 
     setTargetText, setGameMode, setTimeLimit, 
-    timeLimit, gameMode 
+    timeLimit, gameMode, language, setLanguage 
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState('manual');
@@ -20,7 +20,6 @@ export default function Setup() {
   const [targetLength, setTargetLength] = useState('medium'); 
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // 定義後端網址
   const API_BASE = "https://click-clack-1.onrender.com";
 
   const handleFileSelect = (e, targetStateSetter) => {
@@ -53,7 +52,8 @@ export default function Setup() {
           body: JSON.stringify({
             prompt: aiPrompt,
             mode: "creative",
-            length: targetLength
+            length: targetLength,
+            language: language
           }),
         });
       } 
@@ -64,6 +64,7 @@ export default function Setup() {
         formData.append('file', selectedFile); 
         formData.append('mode', analysisMode); 
         formData.append('length', targetLength);
+        formData.append('language', language);
 
         response = await fetch(`${API_BASE}/api/analyze`, {
           method: 'POST',
@@ -96,7 +97,6 @@ export default function Setup() {
     navigate('/practice');    
   };
 
-  // 輔助元件：長度選擇按鈕
   const LengthSelector = () => (
     <div className="mb-6 bg-stone-50 p-4 rounded-lg border border-stone-200">
       <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -139,6 +139,21 @@ export default function Setup() {
             </button>
           </nav>
           <div className="mt-auto pt-6 border-t border-gray-700">
+            <div className="flex bg-gray-800 p-1 rounded border border-gray-700">
+              <button 
+                onClick={() => setLanguage('en')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'en' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-stone-200'}`}
+              >
+                EN
+              </button>
+              <button 
+                onClick={() => setLanguage('zh-TW')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${language === 'zh-TW' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-stone-200'}`}
+              >
+                ZH
+              </button>
+            </div>
+
             <button onClick={toggleSound} className={`w-full py-2 rounded text-sm font-bold border transition-colors flex items-center justify-center gap-2 ${isSoundEnabled ? 'bg-green-900/30 border-green-600 text-green-400' : 'bg-red-900/30 border-red-600 text-red-400'}`}>
               {isSoundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF'}
             </button>
@@ -148,7 +163,7 @@ export default function Setup() {
         {/* 右側內容區 */}
         <div className="flex-1 p-8 flex flex-col overflow-y-auto">
           
-          {/* Mode Selector (大幅優化版) */}
+          {/* Mode Selector */}
           <div className="mb-6 p-5 bg-stone-50 rounded-xl border border-stone-200 flex flex-col gap-4">
             
             {/* 模式切換按鈕 */}
@@ -172,7 +187,7 @@ export default function Setup() {
               </div>
             </div>
 
-            {/* 👇 [新功能] 時間調整拉桿 (只有 Time Attack 顯示) */}
+            {/*  時間調整拉桿 */}
             {gameMode === 'time' && (
                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                  <div className="flex justify-between items-end mb-2">
